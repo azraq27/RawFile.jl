@@ -1,6 +1,7 @@
 module RawFile
 
 export saveraw,readraw
+export RawFile,RawFileIter,start,done,next
 
 token = "RAWF"
 version = 1
@@ -65,24 +66,55 @@ function readraw(fname::String)
     end
 end
 
-function readraw(func::Function,fname::String,batch::Int)
-    open(fname) do f
-        h = readheader(f)
-        batch_step = reduce(*,h.sizes[1:end-1])
-        total_length = batch_step*h.sizes[end]
-        batch_size = copy(h.sizes)
-        i = 0
-        while i<total_length
-            this_len = Int(min(batch,(total_length-i)/batch_step))
-            batch_size[end] = this_len
-            d = read(f,h.typet,Tuple(batch_size))
-            func(d)
-            i += batch_step*this_len
-        end
-        endtok = String(read(f,length(endtoken)))
+type RawFileIter
+    fname::String
+    num_batch::Int
+end
+
+type RawFileState
+    i::Int
+    total_length::Int
+    num_batch::Int
+    batch_step::Int
+    batch_size::Array{Int,1}
+    f::IO
+    typet::Type
+end
+
+import Base.start,Base.next,Base.done
+
+function start(r::RawFileIter)
+    f = open(r.fname)
+    h = readheader(f)
+    batch_step = reduce(*,h.sizes[1:end-1])
+    total_length = batch_step*h.sizes[end]
+    batch_size = copy(h.sizes)
+    i = 0
+    return RawFileState(i,total_length,r.num_batch,batch_step,batch_size,f,h.typet)
+end
+
+function done(r::RawFileIter,state)
+    if state.i < state.total_length
+        return false
+    else
+        endtok = String(read(state.f,length(endtoken)))
         endtok != endtoken && error("Invalid end of RawFile")
+        return true
     end
 end
 
+function next(r::RawFileIter,state)
+    this_len = Int(min(state.num_batch,(state.total_length-state.i)/state.batch_step))
+    state.batch_size[end] = this_len
+    d = read(state.f,state.typet,Tuple(state.batch_size))
+    state.i += state.batch_step*this_len
+    return (d,state)
+end
+
+function readraw(func::Function,fname::String,batch::Int)
+    for d in RawFileIter(fname,batch)
+        func(d)
+    end
+end
 
 end
