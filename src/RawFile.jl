@@ -1,6 +1,6 @@
 module RawFile
 
-export saveraw,readraw
+export saveraw,readraw,rawsize
 export RawFile,RawFileIter,start,done,next
 
 token = "RAWF"
@@ -63,6 +63,13 @@ function readraw(fname::String)
         endtok = String(read(f,length(endtoken)))
         endtok != endtoken && error("Invalid end of RawFile")
         return d
+    end
+end
+
+function rawsize(fname::String)
+    open(fname) do f
+        h = readheader(f)
+        return h.sizes
     end
 end
 

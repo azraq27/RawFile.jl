@@ -1,9 +1,11 @@
 using RawFile
 using Base.Test
 
+sizes = [(100,),(75,100),(10,20,50)]
 fname = "testfile.raw"
 for t in RawFile.rawtypekey
-    for d in [rand(t,100),rand(t,75,100),rand(t,10,100)]
+    for s in sizes
+        d = rand(t,s)
         saveraw(d,fname)
         dd = readraw(fname)
         catfunc = ndims(d)==1 ? vcat : hcat
@@ -18,6 +20,7 @@ for t in RawFile.rawtypekey
         
         @assert d == dd
         @assert d == dd_batch
+        @assert s == rawsize(fname)
         
         isfile(fname) && rm(fname)
     end
