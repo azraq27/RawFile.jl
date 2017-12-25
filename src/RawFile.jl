@@ -56,6 +56,45 @@ function saveraw{T<:Real,V}(a::AbstractArray{T,V},fname::String)
     end
 end
 
+type PartialRaw
+    f::IO
+    typet::Type
+    sizes::Array{Int64,1}
+    total::Int
+end
+
+function saveraw(func::Function,fname::String)
+    open(fname,"w") do f
+        p = PartialRaw(f,Int,[],0)
+        func(p)
+        write(f,endtoken)
+        seekstart(f)
+        typenum = Int8(findfirst(rawtypekey,p.typet))
+        p.sizes[end] = p.total
+        write(f,RawHeader(version,typenum,p.typet,p.sizes))
+    end
+end
+
+import Base.write
+
+function write{T<:Real,D}(p::PartialRaw,d::AbstractArray{T,D})
+    if length(p.sizes)==0
+        p.sizes = collect(size(d))
+        p.typet = typeof(d[1])
+        typenum = Int8(findfirst(rawtypekey,p.typet))
+        write(p.f,RawHeader(version,typenum,p.typet,p.sizes))
+    else
+        if Tuple(p.sizes[1:end-1]) != size(d)[1:end-1]
+            error("Cannot write partial RawFile, all dimensions other than the last must be the same")
+        end
+        if p.typet != typeof(d[1])
+            error("Cannot write partial RawFile, all data must be the same type")
+        end
+    end
+    write(p.f,d)
+    p.total += size(d)[end]
+end
+
 function readraw(fname::String)
     open(fname) do f
         h = readheader(f)
@@ -69,7 +108,7 @@ end
 function rawsize(fname::String)
     open(fname) do f
         h = readheader(f)
-        return h.sizes
+        return Tuple(h.sizes)
     end
 end
 

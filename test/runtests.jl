@@ -8,19 +8,28 @@ for t in RawFile.rawtypekey
         d = rand(t,s)
         saveraw(d,fname)
         dd = readraw(fname)
-        catfunc = ndims(d)==1 ? vcat : hcat
-        dd_batch = 0
+        dd_batch = t[]
         readraw(fname,10) do d
-            if dd_batch==0
-                dd_batch = d
-            else
-                dd_batch = catfunc(dd_batch,d)
-            end
+            append!(dd_batch,d[:])
         end
+        dd_batch = reshape(dd_batch,s)
         
         @assert d == dd
         @assert d == dd_batch
         @assert s == rawsize(fname)
+        
+        saveraw(fname) do f
+           for i=0:Int(s[end]/10)-1
+                write(f,view(d,[Colon() for j=1:ndims(d)-1]...,i*10+1:i*10+10))
+            end
+        end
+        
+        dd = readraw(fname)
+        info(size(d))
+        info(size(dd))
+        info(d[70:80])
+        info(dd[70:80])
+        @assert d == dd
         
         isfile(fname) && rm(fname)
     end
