@@ -127,10 +127,15 @@ type RawFileState
     typet::Type
 end
 
-import Base.start,Base.next,Base.done
+import Base.start,Base.next,Base.done,Base.length
+
+function finalize(r::RawFileIter)
+    close(r.fname)
+end
 
 function start(r::RawFileIter)
     f = open(r.fname)
+    finalizer(r,finalize)
     h = readheader(f)
     batch_step = reduce(*,h.sizes[1:end-1])
     total_length = batch_step*h.sizes[end]
