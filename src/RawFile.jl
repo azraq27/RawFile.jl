@@ -129,19 +129,20 @@ end
 
 import Base.start,Base.next,Base.done,Base.length
 
-function finalize(r::RawFileIter)
-    close(r.fname)
+function finalize(s::RawFileState)
+    close(s.f)
 end
 
 function start(r::RawFileIter)
     f = open(r.fname)
-    finalizer(r,finalize)
     h = readheader(f)
     batch_step = reduce(*,h.sizes[1:end-1])
     total_length = batch_step*h.sizes[end]
     batch_size = copy(h.sizes)
     i = 0
-    return RawFileState(i,total_length,r.num_batch,batch_step,batch_size,f,h.typet)
+    s = RawFileState(i,total_length,r.num_batch,batch_step,batch_size,f,h.typet)
+    finalizer(s,finalize)
+    return s
 end
 
 function done(r::RawFileIter,state)
