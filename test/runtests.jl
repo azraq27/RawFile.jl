@@ -3,7 +3,7 @@ using Base.Test
 
 sizes = [(100,),(75,100),(10,20,50)]
 fname = "testfile.raw"
-for t in RawFile.rawtypekey
+for t in [UInt8,Int32,Int64,Float32,Float64,Complex32,Complex64]
     for s in sizes
         d = rand(t,s)
         saveraw(d,fname)
@@ -13,24 +13,24 @@ for t in RawFile.rawtypekey
             append!(dd_batch,d[:])
         end
         dd_batch = reshape(dd_batch,s)
-        
+
         @assert d == dd
         @assert d == dd_batch
         @assert s == rawsize(fname)
-        
+
         saveraw(fname) do f
            for i=0:Int(s[end]/10)-1
                 write(f,view(d,[Colon() for j=1:ndims(d)-1]...,i*10+1:i*10+10))
             end
         end
-        
+
         dd = readraw(fname)
         info(size(d))
         info(size(dd))
         info(d[70:80])
         info(dd[70:80])
         @assert d == dd
-        
+
         isfile(fname) && rm(fname)
     end
 end
