@@ -31,6 +31,22 @@ for t in [UInt8,Int32,Int64,Float32,Float64,Complex32,Complex64]
         info(dd[70:80])
         @assert d == dd
 
+        saveraw(view(d,[Colon() for j=1:ndims(d)-1]...,1:10),fname)
+        for i=1:Int(s[end]/10)-1
+            appendraw(view(d,[Colon() for j=1:ndims(d)-1]...,i*10+1:i*10+10),fname)
+        end
+        dd = readraw(fname)
+        @assert d == dd
+
+        if length(s)==1
+            saveraw(view(d,1:10),fname)
+            for i=11:s[1]
+                appendraw(d[i],fname)
+            end
+            dd = readraw(fname)
+            @assert d == dd
+        end
+
         isfile(fname) && rm(fname)
     end
 end

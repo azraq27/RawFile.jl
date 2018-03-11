@@ -1,6 +1,6 @@
 module RawFile
 
-export saveraw,readraw,rawsize
+export saveraw,readraw,rawsize,appendraw
 export RawFile,RawFileIter,start,done,next
 
 token = "RAWF"
@@ -53,6 +53,31 @@ function saveraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
     end
     return nothing
 end
+
+"""
+    appendraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
+
+Append the `AbstractArray` `a` to the file `fname`, along last dimension. Requires `a` to be the same
+`Type` and shape (excluding last dimension)
+"""
+function appendraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
+    open(fname,"r+") do f
+        h = readheader(f)
+        h.eltype != eltype(a) && error("Trying to append RawFile with different data Type")
+        Tuple(h.sizes[1:end-1]) != size(a)[1:end-1] && error("Trying to append RawFile with Array of different shape")
+        h.sizes[end] += size(a)[end]
+        seekstart(f)
+        write(f,h)
+        seekend(f)
+        seek(f,position(f)-length(endtoken))
+        write(f,a)
+        write(f,endtoken)
+    end
+    return nothing
+end
+
+appendraw{T<:Number}(a::T,fname::String) = appendraw([a],fname)
+
 
 """
     readraw(fname::String)
