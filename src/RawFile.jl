@@ -7,7 +7,7 @@ token = "RAWF"
 version = 2
 endtoken = "FIN"
 
-type RawHeader
+mutable struct RawHeader
     version::UInt8
     eltype::Type
     sizes::Vector{Int64}
@@ -33,9 +33,9 @@ function readheader(f::IO)
     ver != version && warn("Incorrect RawFile version ($ver, current version $version)")
     lentypename = read(f,UInt8)
     typename = String(read(f,lentypename))
-    eltype = eval(parse(typename))
+    eltype = eval(Meta.parse(typename))
     nd = read(f,UInt8)
-    sizes = read(f,Int64,nd)
+    sizes = read!(f,Array{Int64}(undef,nd))
     RawHeader(ver,eltype,sizes)
 end
 
@@ -44,7 +44,7 @@ end
 
 Save `a` to the file `fname`.
 """
-function saveraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
+function saveraw(a::AbstractArray{T,V},fname::String) where {T<:Number,V}
     header = RawHeader(version,eltype(a),collect(size(a)))
     open(fname,"w") do f
         write(f,header)
@@ -60,7 +60,7 @@ end
 Append the `AbstractArray` `a` to the file `fname`, along last dimension. Requires `a` to be the same
 `Type` and shape (excluding last dimension)
 """
-function appendraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
+function appendraw(a::AbstractArray{T,V},fname::String) where {T<:Number,V}
     open(fname,"r+") do f
         h = readheader(f)
         h.eltype != eltype(a) && error("Trying to append RawFile with different data Type")
@@ -76,7 +76,7 @@ function appendraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
     return nothing
 end
 
-appendraw{T<:Number}(a::T,fname::String) = appendraw([a],fname)
+appendraw(a::T,fname::String) where {T<:Number} = appendraw([a],fname)
 
 
 """
@@ -87,7 +87,7 @@ Read the file `fname` and return a reconstructed `Array` with the proper `Type` 
 function readraw(fname::String)
     open(fname) do f
         h = readheader(f)
-        d = read(f,h.eltype,Tuple(h.sizes))
+        d = read!(f,Array{h.eltype}(undef,Tuple(h.sizes)))
         endtok = String(read(f,length(endtoken)))
         endtok != endtoken && error("Invalid end of RawFile")
         return d
@@ -106,7 +106,7 @@ function rawsize(fname::String)
     end
 end
 
-type PartialRaw
+mutable struct PartialRaw
     f::IO
     eltype::Type
     sizes::Array{Int64,1}
@@ -144,7 +144,7 @@ function saveraw(func::Function,fname::String)
     return nothing
 end
 
-function write{T<:Number,V}(p::PartialRaw,d::AbstractArray{T,V})
+function write(p::PartialRaw,d::AbstractArray{T,V}) where {T<:Number,V}
     if length(p.sizes)==0
         # This is the first Array we've seen
         p.sizes = collect(size(d))
@@ -179,12 +179,12 @@ INFO: (100, 10, 20)
 INFO: (100, 10, 10)
 ```
 """
-type RawFileIter
+mutable struct RawFileIter
     fname::String
     num_batch::Int
 end
 
-type RawFileState
+mutable struct RawFileState
     i::Int
     total_length::Int
     num_batch::Int
@@ -194,13 +194,13 @@ type RawFileState
     eltype::Type
 end
 
-import Base.start,Base.next,Base.done,Base.length
+import Base.iterate,Base.length
 
 function finalize(s::RawFileState)
     close(s.f)
 end
 
-function start(r::RawFileIter)
+function iterate(r::RawFileIter)
     f = open(r.fname)
     h = readheader(f)
     batch_step = reduce(*,h.sizes[1:end-1])
@@ -208,26 +208,23 @@ function start(r::RawFileIter)
     batch_size = copy(h.sizes)
     i = 0
     s = RawFileState(i,total_length,r.num_batch,batch_step,batch_size,f,h.eltype)
-    finalizer(s,finalize)
-    return s
+    finalizer(finalize,s)
+
+    return iterate(r,s)
 end
 
-function done(r::RawFileIter,state)
+function iterate(r::RawFileIter,state::RawFileState)
     if state.i < state.total_length
-        return false
+        this_len = Int(min(state.num_batch,(state.total_length-state.i)/state.batch_step))
+        state.batch_size[end] = this_len
+        d = read!(state.f,Array{state.eltype}(undef,Tuple(state.batch_size)))
+        state.i += state.batch_step*this_len
+        return (d,state)
     else
         endtok = String(read(state.f,length(endtoken)))
         endtok != endtoken && error("Invalid end of RawFile")
-        return true
+        return nothing
     end
-end
-
-function next(r::RawFileIter,state)
-    this_len = Int(min(state.num_batch,(state.total_length-state.i)/state.batch_step))
-    state.batch_size[end] = this_len
-    d = read(state.f,state.eltype,Tuple(state.batch_size))
-    state.i += state.batch_step*this_len
-    return (d,state)
 end
 
 function readraw(func::Function,fname::String,batch::Int)

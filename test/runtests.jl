@@ -1,9 +1,9 @@
 using RawFile
-using Base.Test
+using Test
 
 sizes = [(100,),(75,100),(10,20,50)]
 fname = "testfile.raw"
-for t in [UInt8,Int32,Int64,Float32,Float64,Complex32,Complex64]
+for t in [UInt8,Int32,Int64,Float32,Float64,ComplexF16,ComplexF32]
     for s in sizes
         d = rand(t,s)
         saveraw(d,fname)
@@ -25,10 +25,10 @@ for t in [UInt8,Int32,Int64,Float32,Float64,Complex32,Complex64]
         end
 
         dd = readraw(fname)
-        info(size(d))
-        info(size(dd))
-        info(d[70:80])
-        info(dd[70:80])
+        @info size(d)
+        @info size(dd)
+        @info d[70:80]
+        @info dd[70:80]
         @assert d == dd
 
         saveraw(view(d,[Colon() for j=1:ndims(d)-1]...,1:10),fname)
