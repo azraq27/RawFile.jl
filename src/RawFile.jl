@@ -151,12 +151,8 @@ function write(p::PartialRaw,d::AbstractArray{T,V}) where {T<:Number,V}
         p.eltype = eltype(d)
         write(p.f,RawHeader(version,p.eltype,p.sizes))
     else
-        if Tuple(p.sizes[1:end-1]) != size(d)[1:end-1]
-            error("Cannot write partial RawFile, all dimensions other than the last must be the same")
-        end
-        if p.eltype != eltype(d)
-            error("Cannot write partial RawFile, all data must be the same type")
-        end
+        Tuple(p.sizes[1:end-1]) != size(d)[1:end-1]  && error("Cannot write partial RawFile, all dimensions other than the last must be the same")
+        p.eltype != eltype(d) && error("Cannot write partial RawFile, all data must be the same type")
     end
     write(p.f,d)
     p.total += size(d)[end]
