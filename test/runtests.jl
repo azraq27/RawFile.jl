@@ -1,5 +1,4 @@
 using RawFile
-using Test
 
 sizes = [(100,),(75,100),(10,20,50)]
 fname = "testfile.raw"
