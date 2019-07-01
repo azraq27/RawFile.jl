@@ -4,3 +4,6 @@ uuid = "7a16de70-abc6-11e8-02b0-4fe68abe0eac"
 version = "1.0.0"
 
 [deps]
+
+[compat]
+julia = "≥ 1.0.0"
