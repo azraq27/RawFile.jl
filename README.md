@@ -10,7 +10,7 @@ Save an Array to a file:
 
     saveraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
     
-Append a Number or Array to an existing file. If appending an Array, appends along last dimension. This function requires that the two Arrays have the same sie (except the last dimension) and `Type`.
+Append a Number or Array to an existing file. If appending an Array, appends along last dimension. This function requires that the two Arrays have the same size (except the last dimension) and `Type`.
 
     appendraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
     appendraw(a::T,fname::String) where {T<:Number} = appendraw([a],fname)
