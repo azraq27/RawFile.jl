@@ -168,11 +168,11 @@ with the last dimension `num_batch` (or less if EOF is reached).
 # Examples
 ```julia-repl
 julia> for d in RawFileIter("test.raw",20)
-           info(size(d))
-       end
-INFO: (100, 10, 20)
-INFO: (100, 10, 20)
-INFO: (100, 10, 10)
+                  @info(size(d))
+              end
+[ Info: (100, 10, 20)
+[ Info: (100, 10, 20)
+[ Info: (100, 10, 10)
 ```
 """
 mutable struct RawFileIter
@@ -223,6 +223,22 @@ function iterate(r::RawFileIter,state::RawFileState)
     end
 end
 
+"""
+    readraw(func::Function,fname::String,batch::Int)
+
+Convenience function for iteratively reading a `RawFile` in chunks. Calls `RawFileIter`
+and runs `func` on each chunk.
+
+# Examples
+```julia-repl
+julia> readraw("test.raw",20) do c
+           @info(size(c))
+       end
+[ Info: (100, 10, 20)
+[ Info: (100, 10, 20)
+[ Info: (100, 10, 10)
+```
+"""
 function readraw(func::Function,fname::String,batch::Int)
     for d in RawFileIter(fname,batch)
         func(d)
