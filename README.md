@@ -9,11 +9,27 @@ The basic format (`raw`) saves bit arrays as flat files with a minimal header. A
 Save an Array to a file:
 
     saveraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
-    
+
 Append a Number or Array to an existing file. If appending an Array, appends along last dimension. This function requires that the two Arrays have the same size (except the last dimension) and `Type`.
 
     appendraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
     appendraw(a::T,fname::String) where {T<:Number} = appendraw([a],fname)
+
+The `saveraw` and `readraw` functions can also be used on `IO` objects if you want to pull the data stream
+from something other than a file. For example:
+
+```julia-repl
+julia> using GZip,RawFile
+
+julia> GZip.open("test.raw.gz","w") do f
+           saveraw(rand(100,10,50),f)
+       end
+
+julia> GZip.open("test.raw.gz") do f
+           rawsize(f)
+       end
+(100, 10, 50)
+```
 
 ## Reading arrays:
 
@@ -24,7 +40,7 @@ Read an Array from a file:
 ## Meta data:
 
 Just read the Array size from the header and return a `Tuple`
- 
+
     rawsize(fname::String)
 
 ## Partial read/write

@@ -40,16 +40,26 @@ function readheader(f::IO)
 end
 
 """
+    saveraw{T<:Number,V}(a::AbstractArray{T,V},f::IO)
+
+Save `a` to the open IO stream `f`.
+"""
+function saveraw(a::AbstractArray{T,V},f::IO) where {T<:Number,V}
+    header = RawHeader(version,eltype(a),collect(size(a)))
+    write(f,header)
+    write(f,a)
+    write(f,endtoken)
+    return nothing
+end
+
+"""
     saveraw{T<:Number,V}(a::AbstractArray{T,V},fname::String)
 
 Save `a` to the file `fname`.
 """
 function saveraw(a::AbstractArray{T,V},fname::String) where {T<:Number,V}
-    header = RawHeader(version,eltype(a),collect(size(a)))
     open(fname,"w") do f
-        write(f,header)
-        write(f,a)
-        write(f,endtoken)
+        saveraw(a,f)
     end
     return nothing
 end
@@ -78,6 +88,18 @@ end
 
 appendraw(a::T,fname::String) where {T<:Number} = appendraw([a],fname)
 
+"""
+    readraw(f::IO)
+
+Read the open IO stream `f` and return a reconstructed `Array` with the proper `Type` and size.
+"""
+function readraw(f::IO)
+    h = readheader(f)
+    d = read!(f,Array{h.eltype}(undef,Tuple(h.sizes)))
+    endtok = String(read(f,length(endtoken)))
+    endtok != endtoken && error("Invalid end of RawFile")
+    return d
+end
 
 """
     readraw(fname::String)
@@ -86,12 +108,18 @@ Read the file `fname` and return a reconstructed `Array` with the proper `Type` 
 """
 function readraw(fname::String)
     open(fname) do f
-        h = readheader(f)
-        d = read!(f,Array{h.eltype}(undef,Tuple(h.sizes)))
-        endtok = String(read(f,length(endtoken)))
-        endtok != endtoken && error("Invalid end of RawFile")
-        return d
+        return readraw(f)
     end
+end
+
+"""
+    rawsize(f::IO)
+
+Read size from IO stream `f`, returns `Tuple`
+"""
+function rawsize(f::IO)
+    h = readheader(f)
+    return Tuple(h.sizes)
 end
 
 """
@@ -101,8 +129,7 @@ Read size from file `fname`, returns `Tuple`
 """
 function rawsize(fname::String)
     open(fname) do f
-        h = readheader(f)
-        return Tuple(h.sizes)
+        return rawsize(f)
     end
 end
 
